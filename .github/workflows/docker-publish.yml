@@ -9,7 +9,7 @@ on:
   push:
     branches: [ "main" ]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ "main" ]
 
@@ -29,7 +29,7 @@ jobs:
         re2c_version: [3.1, 4.0.1, 4.0.2, 4.1, 4.2, 4.3, 4.4]
 
     permissions:
-      contents: read
+      contents: write
       packages: write
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
@@ -63,58 +63,22 @@ jobs:
           build-args: VERSION=${{ matrix.re2c_version }}
           load: true
           push: false # ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: re2c
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # Release artifact
       - name: Take out artifact
-        if: ${{ github.event_name != 'pull_request' }}
-        run: docker run -v .:/mnt --rm ${{ steps.meta.outputs.tags }} sh -c 'cp -p *.tar.gz /mnt'
+        run: docker run -v .:/mnt --rm re2c:latest sh -c 'cp -p *.tar.gz /mnt'
 
       - name: Create a release
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/create-release@v1
+        if: ${{ github.ref_type == 'tag' }}
+        uses: softprops/action-gh-release@v2
         id: create_release
         with:
-          draft: false
-          prelease: false
-          release_name: ${{ github.ref }}
-          tag_name: ${{ github.ref }}
-          body_path: CHANGELOG.md
+          files: |
+            re2c-${{ matrix.re2c_version }}-rhel8.tar.gz
+            re2c-${{ matrix.re2c_version }}-rhel8-debug.tar.gz
+            re2c-${{ matrix.re2c_version }}-rhel8-debugsource.tar.gz
         env:
           GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Upload artifact
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: re2c-${{ matrix.re2c_version }}-rhel8.tar.gz
-          asset_name: re2c-${{ matrix.re2c_version }}-rhel8.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload debug info artifact
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: re2c-${{ matrix.re2c_version }}-rhel8-debug.tar.gz
-          asset_name: re2c-${{ matrix.re2c_version }}-rhel8-debug.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload debug info artifact
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: re2c-${{ matrix.re2c_version }}-rhel8-debugsource.tar.gz
-          asset_name: re2c-${{ matrix.re2c_version }}-rhel8-debugsource.tar.gz
-          asset_content_type: application/gzip
