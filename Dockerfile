@@ -1,4 +1,4 @@
-ARG VERSION=4.4
+ARG VERSION=4.5
 
 FROM registry.access.redhat.com/ubi8/ubi
 ARG VERSION
